@@ -9,7 +9,7 @@
 ```
 
 - **首頁**：大時鐘＋日期，右上角電量。時間來自電腦端常駐程式（見下方「時鐘」）。
-- **App 列表**：2×2 圖示格。左右滑回首頁。
+- **App 列表**：三欄圖示，可上下捲動。左右滑回首頁。
 - **App 內**：底部有一條橫條，從那裡往上滑回首頁；從螢幕最左邊往右滑回 App 列表。
 - **中間 PWR 鍵**：交給目前的 App 處理；App 沒處理時就是調整亮度。
 
@@ -21,8 +21,6 @@
 | 正在播放 | `apps/app_now_playing.cpp` | 電腦正在播的歌，上一首／播放暫停／下一首；PWR = 播放暫停 |
 | 天氣 | `apps/app_placeholders.cpp` | 佔位頁 |
 | 智慧插座 | `apps/app_placeholders.cpp` | 佔位頁 |
-| 感測器 | `apps/app_sensors.cpp` | 水平儀 + 加速度 X/Y/Z、傾斜角（官方範例 04_LVGL_QMI8658_ui） |
-| 重力球 | `apps/app_tilt.cpp` | 傾斜板子滾球吃點數；PWR = 重來（官方範例 04_Immersive_block）。球左右/上下方向相反時改檔案開頭的 `TILT_FLIP_X/Y` |
 | 頻譜 | `apps/app_spectrum.cpp` | 麥克風（ES7210）即時頻譜；PWR = 暫停（官方範例 05_Spec_Analyzer） |
 | 設定 | `apps/app_settings.cpp` | 儲存空間（韌體、PSRAM、記憶體、Flash、設定儲存）、電池（電量、電壓、溫度）、藍牙、亮度、測試音、關於（晶片、溫度、開機時間、版本）（官方範例 03_LVGL_AXP2101_ADC_Data） |
 
@@ -35,7 +33,7 @@
 - 2.16 S3：電源、加速度計、麥克風（ES7210，驅動來自 Waveshare 範例 06_ES7210）
 - 2.16 C6：電源、加速度計
 - 其他板子：App 會顯示「沒有…」
-- 進入感測器／重力球時會暫停螢幕自動旋轉，離開後恢復
+- 加速度計介面（`imu_hal_accel` / `imu_hal_app_mode`）先保留，之後要做體感相關 App 可以直接用
 
 LVGL 改用系統 `malloc`（`-DLV_USE_STDLIB_MALLOC=1`）而不是固定 64 KB 記憶體池，App 變多後才不會不夠用；S3 會自動用到 PSRAM。
 

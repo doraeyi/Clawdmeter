@@ -50,8 +50,6 @@ struct App {
 #define ICON_PLAY       "\xEF\x81\x8B"   // U+F04B
 #define ICON_PAUSE      "\xEF\x81\x8C"   // U+F04C
 #define ICON_GEAR       "\xEF\x80\x93"   // U+F013 gear (Settings)
-#define ICON_COMPASS    "\xEF\x85\x8E"   // U+F14E compass (Sensors)
-#define ICON_BALL       "\xEF\x84\x91"   // U+F111 circle (Tilt ball)
 #define ICON_WAVE       "\xEF\xA0\xBE"   // U+F83E wave-square (Spectrum)
 
 // Display name for a launcher tile / page title.

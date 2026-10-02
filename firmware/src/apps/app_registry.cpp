@@ -5,8 +5,6 @@ extern const App APP_CLAUDE;
 extern const App APP_WEATHER;
 extern const App APP_SMART_PLUG;
 extern const App APP_NOW_PLAYING;
-extern const App APP_SENSORS;
-extern const App APP_TILT;
 extern const App APP_SPECTRUM;
 extern const App APP_SETTINGS;
 
@@ -16,8 +14,6 @@ const App* const APPS[] = {
     &APP_NOW_PLAYING,
     &APP_WEATHER,
     &APP_SMART_PLUG,
-    &APP_SENSORS,
-    &APP_TILT,
     &APP_SPECTRUM,
     &APP_SETTINGS,
 };
