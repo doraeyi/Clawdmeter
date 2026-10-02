@@ -26,3 +26,16 @@ void ble_set_battery_level(int pct);
 // BLE HID keyboard
 void ble_keyboard_press(uint8_t key, uint8_t modifier);
 void ble_keyboard_release(void);
+
+// Now-playing payload from the host (separate characteristic from usage data)
+bool ble_has_now_playing(void);
+const char* ble_get_now_playing(void);
+
+// BLE HID consumer control (media keys): press + release in one call.
+#define MEDIA_PLAY_PAUSE 0x00CD
+#define MEDIA_NEXT       0x00B5
+#define MEDIA_PREV       0x00B6
+#define MEDIA_VOL_UP     0x00E9
+#define MEDIA_VOL_DOWN   0x00EA
+#define MEDIA_MUTE       0x00E2
+void ble_media_key(uint16_t usage);

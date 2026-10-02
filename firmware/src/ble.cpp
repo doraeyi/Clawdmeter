@@ -11,6 +11,7 @@
 #define RX_CHAR_UUID        "4c41555a-4465-7669-6365-000000000002"  // host writes here
 #define TX_CHAR_UUID        "4c41555a-4465-7669-6365-000000000003"  // device ack/nack notifies
 #define REQ_CHAR_UUID       "4c41555a-4465-7669-6365-000000000004"  // device-initiated refresh request
+#define NP_CHAR_UUID        "4c41555a-4465-7669-6365-000000000005"  // host writes now-playing JSON here
 
 #define BLE_BUF_SIZE 512
 
@@ -53,11 +54,28 @@ static const uint8_t HID_REPORT_MAP[] = {
     0x29, 0x65,  //   Usage Maximum (101)
     0x81, 0x00,  //   Input (Data, Array) - Key array (6 keys)
     0xC0,        // End Collection
+
+    // Consumer control (media keys) — report ID 2, one 16-bit usage.
+    // Play/Pause 0xCD, Next 0xB5, Previous 0xB6, Vol+ 0xE9, Vol- 0xEA, Mute 0xE2.
+    0x05, 0x0C,        // Usage Page (Consumer)
+    0x09, 0x01,        // Usage (Consumer Control)
+    0xA1, 0x01,        // Collection (Application)
+    0x85, 0x02,        //   Report ID (2)
+    0x15, 0x00,        //   Logical Minimum (0)
+    0x26, 0xFF, 0x03,  //   Logical Maximum (1023)
+    0x19, 0x00,        //   Usage Minimum (0)
+    0x2A, 0xFF, 0x03,  //   Usage Maximum (1023)
+    0x75, 0x10,        //   Report Size (16)
+    0x95, 0x01,        //   Report Count (1)
+    0x81, 0x00,        //   Input (Data, Array, Absolute)
+    0xC0,              // End Collection
 };
 
 static NimBLEServer* server = nullptr;
 static NimBLEHIDDevice* hid_dev = nullptr;
 static NimBLECharacteristic* input_kbd = nullptr;
+static NimBLECharacteristic* input_media = nullptr;
+static NimBLECharacteristic* np_char = nullptr;
 static NimBLECharacteristic* tx_char = nullptr;
 static NimBLECharacteristic* rx_char = nullptr;
 static NimBLECharacteristic* req_char = nullptr;
@@ -74,6 +92,8 @@ static volatile uint32_t param_fix_at_ms  = 0;                 // when to send i
 static volatile uint16_t param_fix_spent  = CONN_HANDLE_NONE;  // one per connection
 static char rx_buf[BLE_BUF_SIZE];
 static volatile bool data_ready = false;
+static char np_buf[BLE_BUF_SIZE];
+static volatile bool np_ready = false;
 static volatile bool has_received_data = false;
 static char mac_str[18];
 
@@ -286,6 +306,21 @@ class RxCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
+// Now-playing payloads get their own characteristic + buffer so they never
+// race the usage payload in rx_buf. Same encryption/owner rules as RX.
+class NpCallbacks : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* chr, NimBLEConnInfo& info) override {
+        std::string id = info.getIdAddress().toString();
+        if (!info.isEncrypted()) return;
+        if (owner_set && strcmp(id.c_str(), owner_addr) != 0) return;
+        std::string val = chr->getValue();
+        size_t len = std::min(val.length(), (size_t)(BLE_BUF_SIZE - 1));
+        memcpy(np_buf, val.c_str(), len);
+        np_buf[len] = '\0';
+        np_ready = true;
+    }
+};
+
 // When the daemon enables notifications on the refresh char, ask for data
 // if we have none yet. Firing on subscribe (not on connect) ensures the
 // notification isn't dropped before the daemon's CCCD write completes.
@@ -335,6 +370,7 @@ void ble_init(void) {
     hid_dev->setHidInfo(33, 0x02);
     hid_dev->setBatteryLevel(100);
     input_kbd = hid_dev->getInputReport(1);  // report ID 1
+    input_media = hid_dev->getInputReport(2);  // report ID 2 (media keys)
 
     // --- Custom data service ---
     NimBLEService* svc = server->createService(SERVICE_UUID);
@@ -357,6 +393,13 @@ void ble_init(void) {
     );
     static ReqCallbacks reqCb;
     req_char->setCallbacks(&reqCb);
+
+    np_char = svc->createCharacteristic(
+        NP_CHAR_UUID,
+        NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR
+    );
+    static NpCallbacks npCb;
+    np_char->setCallbacks(&npCb);
 
     svc->start();
     server->start();
@@ -460,4 +503,21 @@ void ble_keyboard_release(void) {
     uint8_t report[8] = {0};
     input_kbd->setValue(report, sizeof(report));
     input_kbd->notify();
+}
+
+bool ble_has_now_playing(void) { return np_ready; }
+
+const char* ble_get_now_playing(void) {
+    np_ready = false;
+    return np_buf;
+}
+
+void ble_media_key(uint16_t usage) {
+    if (state != BLE_STATE_CONNECTED || !input_media) return;
+    uint8_t press[2] = { (uint8_t)(usage & 0xFF), (uint8_t)(usage >> 8) };
+    input_media->setValue(press, sizeof(press));
+    input_media->notify();
+    uint8_t release[2] = {0, 0};
+    input_media->setValue(release, sizeof(release));
+    input_media->notify();
 }

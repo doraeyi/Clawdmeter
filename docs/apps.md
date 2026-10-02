@@ -20,7 +20,18 @@
 | Claude | `apps/app_claude.cpp` | 原本的用量畫面。PWR 鍵 → Clawd 動畫，再按換下一個動畫；點螢幕切回用量 |
 | Weather | `apps/app_placeholders.cpp` | 佔位頁（Coming soon） |
 | Smart Plug | `apps/app_placeholders.cpp` | 佔位頁 |
-| Now Playing | `apps/app_placeholders.cpp` | 佔位頁 |
+| Now Playing | `apps/app_now_playing.cpp` | 顯示電腦正在播的歌（YouTube / YT Music / Spotify…），上一首／播放暫停／下一首；PWR 鍵 = 播放暫停 |
+
+## Now Playing（正在播放）
+
+- **控制**：板子用藍牙鍵盤的「多媒體鍵」（播放暫停、上一首、下一首），不需要電腦端程式也能用。
+- **歌名顯示**：電腦端常駐程式讀取 Windows 的媒體控制（按音量鍵時左上角跳出的那個），瀏覽器裡的 YouTube、YouTube Music 都會回報到那裡，每秒檢查一次，有變化才傳給板子，另外每 15 秒送一次心跳。
+- 需要的 Python 套件已加進 `daemon/requirements-windows.txt`（`winrt-Windows.Media.Control` 等），重跑一次 `install-windows.ps1` 即可安裝。
+- **第一次燒這版要重新配對藍牙**：藍牙鍵盤的描述多了多媒體鍵，Windows 會記住舊的描述。到「設定 → 藍牙與裝置」移除 Clawdmeter，再重新新增。
+- 中文字型 `font_cjk_28.c`（Noto Sans CJK TC Medium，SIL OFL）：Big5 常用字 + JIS 第一水準漢字 + GB2312 一級字 + 假名，約 7800 字。字型超過 1 MB，所以每個 env 都加了 `-DLV_FONT_FMT_TXT_LARGE=1`。
+- 2.16 S3 板改用 16 MB 分割表（`default_16MB.csv`）才放得下字型；NVS 位置不變，配對資料會保留。
+
+模擬器：`SIM_NOWPLAYING='{"np":1,"ti":"歌名","ar":"歌手","app":"Chrome","st":"playing","pos":83,"dur":261}'`
 
 ## 新增 App
 

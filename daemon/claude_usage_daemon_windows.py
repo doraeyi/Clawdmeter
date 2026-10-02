@@ -26,10 +26,17 @@ from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
 
+try:  # imported as daemon.claude_usage_daemon_windows (tray app)
+    from .now_playing_windows import NowPlayingWatcher
+except ImportError:  # run directly as a script
+    from now_playing_windows import NowPlayingWatcher
+
 DEVICE_NAME = "Clawdmeter"
 SERVICE_UUID = "4c41555a-4465-7669-6365-000000000001"
 RX_CHAR_UUID = "4c41555a-4465-7669-6365-000000000002"
 REQ_CHAR_UUID = "4c41555a-4465-7669-6365-000000000004"
+NP_CHAR_UUID = "4c41555a-4465-7669-6365-000000000005"   # now-playing payloads
+NP_TICK = 1.0  # seconds between now-playing checks while connected
 
 POLL_INTERVAL = 60
 TICK = 5
@@ -391,6 +398,18 @@ class Session:
         except (BleakError, ValueError, OSError) as e:
             log(f"Refresh subscription unavailable: {e}")
 
+    async def write_now_playing(self, payload: dict) -> bool:
+        """Send a now-playing payload. Uses a write-with-response so payloads
+        longer than one BLE packet (long CJK titles) go out as a long write.
+        Older firmware without the characteristic just makes this fail quietly."""
+        data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        try:
+            await self.client.write_gatt_char(NP_CHAR_UUID, data, response=True)
+            return True
+        except (BleakError, OSError, ValueError) as e:
+            log(f"Now-playing write failed: {e}")
+            return False
+
     async def write_payload(self, payload: dict) -> bool:
         data = json.dumps(payload, separators=(",", ":")).encode()
         log(f"Sending: {data.decode()}")
@@ -585,6 +604,7 @@ async def connect_and_run(device, stop_event: asyncio.Event, tray_state=None) ->
     log("Connected")
     session = Session(client)
     await session.setup_refresh_subscription()
+    np_watcher = NowPlayingWatcher(log)
 
     last_poll = 0.0  # D-03: poll immediately on first connect
     used_successfully = False
@@ -671,7 +691,15 @@ async def connect_and_run(device, stop_event: asyncio.Event, tray_state=None) ->
             # client.disconnect() before the process exits, so the peer gets a
             # clean GATT disconnect (returns to its waiting screen) instead of
             # being left frozen on stale data after Quit (SC#3 graceful shutdown).
-            await _wait_first(session.refresh_requested, stop_event, timeout=TICK)
+            # Now playing: checked every NP_TICK seconds; only changes and a
+            # periodic heartbeat are actually written to the device.
+            np_payload = await np_watcher.poll()
+            if np_payload is not None:
+                if await session.write_now_playing(np_payload):
+                    log(f"Now playing: {np_payload.get('st')} {np_payload.get('ti', '')!r}")
+                else:
+                    np_watcher.force_resend()
+            await _wait_first(session.refresh_requested, stop_event, timeout=NP_TICK)
     finally:
         # Clean GATT disconnect on the way out — this is what tells the peripheral
         # the link is gone. WinRT can surface a raw OSError (not BleakError) here,

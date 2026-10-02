@@ -43,6 +43,10 @@ struct App {
 #define ICON_MUSIC      "\xEF\x80\x81"   // U+F001
 #define ICON_CLOUD      "\xEF\x83\x82"   // U+F0C2
 #define ICON_SUN        "\xEF\x86\x85"   // U+F185
+#define ICON_PREV       "\xEF\x81\x88"   // U+F048 backward-step
+#define ICON_NEXT       "\xEF\x81\x91"   // U+F051 forward-step
+#define ICON_PLAY       "\xEF\x81\x8B"   // U+F04B
+#define ICON_PAUSE      "\xEF\x81\x8C"   // U+F04C
 
 // Helpers shared by simple apps (implemented in app_manager.cpp).
 // Builds the standard page header (app name, centered at the top) and returns

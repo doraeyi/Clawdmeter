@@ -149,3 +149,16 @@ void sim_playback_toggle_link(void) {
     connected = !connected;
     refresh_title();
 }
+
+// ---- Now playing + media keys ----
+// SIM_NOWPLAYING='{"np":1,"ti":"...","ar":"...","st":"playing"}' delivers one
+// now-playing payload ~1 s after boot.
+static bool np_sent = false;
+bool ble_has_now_playing(void) {
+    return !np_sent && getenv("SIM_NOWPLAYING") && millis() > 1000;
+}
+const char* ble_get_now_playing(void) {
+    np_sent = true;
+    return getenv("SIM_NOWPLAYING");
+}
+void ble_media_key(uint16_t usage) { printf("[sim] HID media key 0x%04X\n", usage); }
