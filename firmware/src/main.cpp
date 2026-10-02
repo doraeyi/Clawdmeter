@@ -30,8 +30,12 @@ static UsageData usage = {};
 // boards (e.g. ESP32-C6) allocate from internal SRAM, so we shrink the strip
 // — 480×20 RGB565 = 19 KB × 2 buffers = 38 KB, fits beside everything else.
 #ifdef BOARD_HAS_PSRAM
+// Draw buffers in internal DMA-capable SRAM: LVGL renders 2-3x faster there
+// than in PSRAM. Affordable because LVGL's objects now live in PSRAM
+// (lv_mem_psram.c). Falls back to PSRAM if internal RAM is short.
 #define BUF_LINES 40
-#define LV_BUF_CAPS (MALLOC_CAP_SPIRAM)
+#define LV_BUF_CAPS (MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA)
+#define LV_BUF_FALLBACK_CAPS (MALLOC_CAP_SPIRAM)
 #else
 #define BUF_LINES 20
 #define LV_BUF_CAPS (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
@@ -220,6 +224,10 @@ void setup() {
 
     buf1 = (uint16_t*)heap_caps_malloc(W * BUF_LINES * 2, LV_BUF_CAPS);
     buf2 = (uint16_t*)heap_caps_malloc(W * BUF_LINES * 2, LV_BUF_CAPS);
+#ifdef LV_BUF_FALLBACK_CAPS
+    if (!buf1) buf1 = (uint16_t*)heap_caps_malloc(W * BUF_LINES * 2, LV_BUF_FALLBACK_CAPS);
+    if (!buf2) buf2 = (uint16_t*)heap_caps_malloc(W * BUF_LINES * 2, LV_BUF_FALLBACK_CAPS);
+#endif
 
     lv_display_t* disp = lv_display_create(W, H);
     lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
