@@ -2,6 +2,8 @@
 #include <SDL.h>
 #include <Arduino.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 static bool quit = false;
 
@@ -24,7 +26,58 @@ bool sim_should_quit(void) { return quit; }
 // Matches the AXP2101 long-press threshold main.cpp's pair gesture expects.
 #define PWR_LONG_MS 1500
 
+// ---- Scripted input (SIM_INPUT) ----
+struct ScriptStep { uint32_t ms; char op[8]; int a, b; char path[160]; };
+static ScriptStep* script = nullptr;
+static int  script_n = 0, script_i = 0;
+static bool script_loaded = false;
+static bool s_touch = false;
+static int  s_x = 0, s_y = 0;
+
+static void script_load(void) {
+    script_loaded = true;
+    const char* f = getenv("SIM_INPUT");
+    if (!f) return;
+    FILE* fp = fopen(f, "r");
+    if (!fp) { printf("SIM_INPUT: cannot open %s\n", f); return; }
+    script = (ScriptStep*)calloc(512, sizeof(ScriptStep));
+    char line[256];
+    while (script_n < 512 && fgets(line, sizeof(line), fp)) {
+        if (line[0] == '#' || line[0] == '\n') continue;
+        ScriptStep& st = script[script_n];
+        unsigned long ms = 0;
+        int n = sscanf(line, "%lu %7s", &ms, st.op);
+        if (n < 2) continue;
+        st.ms = (uint32_t)ms;
+        if (!strcmp(st.op, "shot")) sscanf(line, "%*lu %*s %159s", st.path);
+        else sscanf(line, "%*lu %*s %d %d", &st.a, &st.b);
+        script_n++;
+    }
+    fclose(fp);
+    printf("SIM_INPUT: %d steps\n", script_n);
+}
+
+static void script_run(void) {
+    if (!script_loaded) script_load();
+    while (script_i < script_n && millis() >= script[script_i].ms) {
+        ScriptStep& st = script[script_i++];
+        if      (!strcmp(st.op, "down")) { s_touch = true;  s_x = st.a; s_y = st.b; }
+        else if (!strcmp(st.op, "move")) { s_x = st.a; s_y = st.b; }
+        else if (!strcmp(st.op, "up"))   { s_touch = false; }
+        else if (!strcmp(st.op, "pwr"))  { edge_pressed = true; edge_released = true; }
+        else if (!strcmp(st.op, "shot")) { sim_display_screenshot(st.path); }
+        else if (!strcmp(st.op, "quit")) { quit = true; }
+    }
+}
+
+bool sim_script_touch(uint16_t* x, uint16_t* y, bool* pressed) {
+    if (!script) return false;
+    *x = (uint16_t)s_x; *y = (uint16_t)s_y; *pressed = s_touch;
+    return true;
+}
+
 void sim_pump(void) {
+    script_run();
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_QUIT) quit = true;

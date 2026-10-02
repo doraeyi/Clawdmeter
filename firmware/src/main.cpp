@@ -12,6 +12,7 @@
 #include "idle.h"
 #include "idle_cfg.h"
 #include "brightness.h"
+#include "apps/app_manager.h"
 
 #include "hal/board_caps.h"
 #include "hal/display_hal.h"
@@ -87,6 +88,11 @@ static void my_touch_cb(lv_indev_t* indev, lv_indev_data_t* data) {
     } else if (idle_is_asleep()) {
         pressed = false;
     }
+
+    // Launcher navigation gestures (swipe up from the bottom bar, home <->
+    // app list). When one fires, LVGL ignores the rest of this press so the
+    // widget under the finger doesn't also see a click.
+    if (app_manager_touch(pressed, x, y)) lv_indev_wait_release(indev);
 
     if (pressed) {
         data->point.x = x;
@@ -231,7 +237,8 @@ void setup() {
     ui_init();
     ui_update_ble_status(ble_get_state(), ble_get_device_name(), ble_get_mac_address());
     ui_update_battery(power_hal_battery_pct(), power_hal_is_charging());
-    ui_show_screen(SCREEN_SPLASH);
+    ui_show_screen(SCREEN_NONE);
+    app_manager_init();   // boots into the clock home screen
 
     Serial.printf("Dashboard ready (%s, %dx%d), waiting for data on BLE...\n",
         board_caps().name, W, H);
@@ -289,6 +296,7 @@ void loop() {
     idle_tick();
     lv_timer_handler();
     ui_tick_anim();
+    app_manager_tick();
     ble_tick();
     power_hal_tick();
     imu_hal_tick();
@@ -342,10 +350,9 @@ void loop() {
 
         if (power_hal_pwr_pressed()) {
             if (!idle_consume_wake_press()) {
-                // On splash: cycle animations. On the usage view: cycle
-                // screen brightness (single non-splash view, no more screens).
-                if (ui_get_current_screen() == SCREEN_SPLASH) splash_next();
-                else                                          brightness_cycle();
+                // Routed to the app in front (Claude: show / cycle the
+                // animation); everywhere else: cycle screen brightness.
+                app_manager_on_pwr();
             }
         }
 
@@ -389,6 +396,7 @@ void loop() {
                 if (splash_is_active()) splash_pick_for_current_rate();
             }
             ui_update(&usage);
+            app_manager_on_usage(&usage);
             ble_send_ack();
         } else {
             ble_send_nack();

@@ -24,3 +24,8 @@ void sim_playback_toggle(void);
 void sim_playback_step(int dir);
 void sim_playback_jump(int idx);      // 0-based
 void sim_playback_toggle_link(void);  // BLE connected <-> disconnected
+
+// Scripted input for headless UI tests (SIM_INPUT=<file>). Each line:
+//   <ms> down <x> <y> | <ms> move <x> <y> | <ms> up | <ms> pwr | <ms> shot <path> | <ms> quit
+// While a script is loaded it owns the touch point (mouse is ignored).
+bool sim_script_touch(uint16_t* x, uint16_t* y, bool* pressed);

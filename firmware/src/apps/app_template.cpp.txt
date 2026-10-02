@@ -1,0 +1,42 @@
+// 新 App 範本 — 複製成 app_<名稱>.cpp（副檔名改成 .cpp 才會被編譯）。
+// 然後到 app_registry.cpp 加兩行：
+//     extern const App APP_MYAPP;        // 宣告
+//     &APP_MYAPP,                        // 加進 APPS[] 清單
+#include "app.h"
+
+extern const App APP_MYAPP;
+
+static lv_obj_t* lbl_value;
+
+// 開機時呼叫一次，在 root（全螢幕容器）裡建立畫面元件
+static void myapp_create(lv_obj_t* root) {
+    app_make_title(root, APP_MYAPP.name);
+
+    lbl_value = lv_label_create(root);
+    lv_label_set_text(lbl_value, "Hello");
+    lv_obj_align(lbl_value, LV_ALIGN_CENTER, 0, 0);
+}
+
+// 從 App 列表點進來時
+static void myapp_enter(void) {}
+
+// 回首頁 / 回列表時
+static void myapp_leave(void) {}
+
+// App 在前景時每個 loop 呼叫（約每 5ms，記得自己節流）
+static void myapp_tick(void) {}
+
+// 按中間 PWR 鍵；回傳 true 表示已處理，false 則改成預設的「調整亮度」
+static bool myapp_on_pwr(void) { return false; }
+
+extern const App APP_MYAPP = {
+    /*name*/       "My App",
+    /*icon_glyph*/ ICON_SUN,      // app.h 裡的圖示；要新圖示得重新產生 font_icons_64.c
+    /*icon_img*/   nullptr,
+    /*color*/      0xd97757,      // 圖示顏色 0xRRGGBB
+    /*create*/     myapp_create,
+    /*enter*/      myapp_enter,
+    /*leave*/      myapp_leave,
+    /*tick*/       myapp_tick,
+    /*on_pwr*/     myapp_on_pwr,
+};

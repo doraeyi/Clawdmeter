@@ -5,6 +5,7 @@
 enum screen_t {
     SCREEN_SPLASH,
     SCREEN_USAGE,
+    SCREEN_NONE,     // everything Claude-related hidden (launcher / other apps in front)
     SCREEN_COUNT,
 };
 

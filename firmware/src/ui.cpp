@@ -759,7 +759,7 @@ void ui_tick_anim(void) {
 static screen_t prev_non_splash_screen = SCREEN_USAGE;
 static void apply_battery_visibility(void) {
     if (!battery_img) return;
-    if (current_screen == SCREEN_SPLASH) lv_obj_add_flag(battery_img, LV_OBJ_FLAG_HIDDEN);
+    if (current_screen != SCREEN_USAGE) lv_obj_add_flag(battery_img, LV_OBJ_FLAG_HIDDEN);
     else                                  lv_obj_clear_flag(battery_img, LV_OBJ_FLAG_HIDDEN);
 }
 
@@ -779,13 +779,13 @@ void ui_show_screen(screen_t screen) {
     default: break;
     }
 
-    splash_mascot_set_visible(screen != SCREEN_SPLASH);
+    splash_mascot_set_visible(screen == SCREEN_USAGE);
     if (logo_img) {
-        if (screen == SCREEN_SPLASH) lv_obj_add_flag(logo_img, LV_OBJ_FLAG_HIDDEN);
-        else                          lv_obj_clear_flag(logo_img, LV_OBJ_FLAG_HIDDEN);
+        if (screen != SCREEN_USAGE) lv_obj_add_flag(logo_img, LV_OBJ_FLAG_HIDDEN);
+        else                         lv_obj_clear_flag(logo_img, LV_OBJ_FLAG_HIDDEN);
     }
 
-    if (screen != SCREEN_SPLASH) prev_non_splash_screen = screen;
+    if (screen == SCREEN_USAGE) prev_non_splash_screen = screen;
     current_screen = screen;
     apply_battery_visibility();
 }
