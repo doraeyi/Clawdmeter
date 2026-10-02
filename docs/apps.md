@@ -15,12 +15,29 @@
 
 ## 目前的 App
 
-| App | 檔案 | 狀態 |
+| App | 檔案 | 說明 |
 |---|---|---|
-| Claude | `apps/app_claude.cpp` | 原本的用量畫面。PWR 鍵 → Clawd 動畫，再按換下一個動畫；點螢幕切回用量 |
-| Weather | `apps/app_placeholders.cpp` | 佔位頁（Coming soon） |
-| Smart Plug | `apps/app_placeholders.cpp` | 佔位頁 |
-| Now Playing | `apps/app_now_playing.cpp` | 顯示電腦正在播的歌（YouTube / YT Music / Spotify…），上一首／播放暫停／下一首；PWR 鍵 = 播放暫停 |
+| Claude | `apps/app_claude.cpp` | 原本的用量畫面。PWR 鍵 → Clawd 動畫，再按換下一個；點螢幕切回用量 |
+| 正在播放 | `apps/app_now_playing.cpp` | 電腦正在播的歌，上一首／播放暫停／下一首；PWR = 播放暫停 |
+| 天氣 | `apps/app_placeholders.cpp` | 佔位頁 |
+| 智慧插座 | `apps/app_placeholders.cpp` | 佔位頁 |
+| 感測器 | `apps/app_sensors.cpp` | 水平儀 + 加速度 X/Y/Z、傾斜角（官方範例 04_LVGL_QMI8658_ui） |
+| 重力球 | `apps/app_tilt.cpp` | 傾斜板子滾球吃點數；PWR = 重來（官方範例 04_Immersive_block）。球左右/上下方向相反時改檔案開頭的 `TILT_FLIP_X/Y` |
+| 頻譜 | `apps/app_spectrum.cpp` | 麥克風（ES7210）即時頻譜；PWR = 暫停（官方範例 05_Spec_Analyzer） |
+| 設定 | `apps/app_settings.cpp` | 儲存空間（韌體、PSRAM、記憶體、Flash、設定儲存）、電池（電量、電壓、溫度）、藍牙、亮度、測試音、關於（晶片、溫度、開機時間、版本）（官方範例 03_LVGL_AXP2101_ADC_Data） |
+
+不要的 App：刪掉它的 `.cpp`，再從 `app_registry.cpp` 刪掉那兩行即可。
+
+### 板子額外功能（`hal/hal_extras.h`）
+
+電源細節、加速度計、麥克風是「選配」介面，`hal_extras_default.cpp` 裡有預設的「不支援」版本，板子資料夾有實作的才會用到硬體：
+
+- 2.16 S3：電源、加速度計、麥克風（ES7210，驅動來自 Waveshare 範例 06_ES7210）
+- 2.16 C6：電源、加速度計
+- 其他板子：App 會顯示「沒有…」
+- 進入感測器／重力球時會暫停螢幕自動旋轉，離開後恢復
+
+LVGL 改用系統 `malloc`（`-DLV_USE_STDLIB_MALLOC=1`）而不是固定 64 KB 記憶體池，App 變多後才不會不夠用；S3 會自動用到 PSRAM。
 
 ## Now Playing（正在播放）
 

@@ -39,4 +39,5 @@ extern const App APP_MYAPP = {
     /*leave*/      myapp_leave,
     /*tick*/       myapp_tick,
     /*on_pwr*/     myapp_on_pwr,
+    /*label*/      "我的 App",    // 啟動器和標題顯示的名稱（可用中文）
 };

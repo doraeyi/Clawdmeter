@@ -34,6 +34,8 @@ struct App {
     void (*leave)(void);
     void (*tick)(void);
     bool (*on_pwr)(void);
+
+    const char*            label;       // optional display name (UTF-8, CJK ok); NULL → name
 };
 
 // Font Awesome 6 (solid) glyphs compiled into font_icons_64.
@@ -47,6 +49,13 @@ struct App {
 #define ICON_NEXT       "\xEF\x81\x91"   // U+F051 forward-step
 #define ICON_PLAY       "\xEF\x81\x8B"   // U+F04B
 #define ICON_PAUSE      "\xEF\x81\x8C"   // U+F04C
+#define ICON_GEAR       "\xEF\x80\x93"   // U+F013 gear (Settings)
+#define ICON_COMPASS    "\xEF\x85\x8E"   // U+F14E compass (Sensors)
+#define ICON_BALL       "\xEF\x84\x91"   // U+F111 circle (Tilt ball)
+#define ICON_WAVE       "\xEF\xA0\xBE"   // U+F83E wave-square (Spectrum)
+
+// Display name for a launcher tile / page title.
+inline const char* app_label(const struct App* a) { return a->label ? a->label : a->name; }
 
 // Helpers shared by simple apps (implemented in app_manager.cpp).
 // Builds the standard page header (app name, centered at the top) and returns

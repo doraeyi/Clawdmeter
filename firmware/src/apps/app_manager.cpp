@@ -11,6 +11,7 @@
 
 LV_FONT_DECLARE(font_clock_120);
 LV_FONT_DECLARE(font_icons_64);
+LV_FONT_DECLARE(font_cjk_28);
 LV_FONT_DECLARE(font_tiempos_56);
 LV_FONT_DECLARE(font_tiempos_34);
 LV_FONT_DECLARE(font_styrene_48);
@@ -55,7 +56,7 @@ static void compute_launcher_layout(void) {
         LL.grid_y      = c.height >= 460 ? 112 : 84;
         LL.tile_gap    = 16;
         LL.bar_w = 120; LL.bar_h = 6; LL.bar_bottom = 4;
-        LL.bottom_zone = 70;
+        LL.bottom_zone = 40;   // only the strip around the home bar; content can scroll above it
     } else {
         LL.margin      = 10;
         LL.clock_font  = &font_styrene_48;
@@ -67,7 +68,7 @@ static void compute_launcher_layout(void) {
         LL.grid_y      = 48;
         LL.tile_gap    = 8;
         LL.bar_w = 70; LL.bar_h = 4; LL.bar_bottom = 3;
-        LL.bottom_zone = 40;
+        LL.bottom_zone = 28;
     }
     LL.swipe_px = c.width / 6;   // 80 px on 480
 }
@@ -118,14 +119,20 @@ static lv_obj_t* make_label(lv_obj_t* parent, const lv_font_t* f, lv_color_t col
     return l;
 }
 
+static bool is_ascii(const char* s) {
+    for (; *s; s++) if ((unsigned char)*s >= 0x80) return false;
+    return true;
+}
+
 lv_obj_t* app_make_title(lv_obj_t* root, const char* text) {
-    lv_obj_t* t = make_label(root, LL.title_font, THEME_TEXT, text);
+    // The serif title font is Latin-only; CJK titles use the CJK font.
+    lv_obj_t* t = make_label(root, is_ascii(text) ? LL.title_font : &font_cjk_28, THEME_TEXT, text);
     lv_obj_align(t, LV_ALIGN_TOP_MID, 0, LL.title_y);
     return t;
 }
 
 void app_make_placeholder(lv_obj_t* root, const App* app, const char* line) {
-    app_make_title(root, app->name);
+    app_make_title(root, app_label(app));
     if (app->icon_glyph) {
         lv_obj_t* ic = make_label(root, &font_icons_64, lv_color_hex(app->color), app->icon_glyph);
         lv_obj_align(ic, LV_ALIGN_CENTER, 0, -10);
@@ -236,22 +243,30 @@ static void build_launcher(lv_obj_t* scr) {
     lv_obj_t* t = make_label(launcher_root, LL.title_font, THEME_TEXT, "Apps");
     lv_obj_align(t, LV_ALIGN_TOP_MID, 0, LL.title_y);
 
-    const int cols = 2;
+    // Scrollable grid: as many apps as you like, scroll vertically.
+    const bool small = LL.w < 300;
+    const int cols = small ? 2 : 3;
+    const int gap = LL.tile_gap;
     const int grid_w = LL.w - 2 * LL.margin;
-    const int tile_w = (grid_w - (cols - 1) * LL.tile_gap) / cols;
-    const int rows = (APP_COUNT + cols - 1) / cols;
-    const int avail_h = LL.h - LL.grid_y - LL.margin - LL.bar_bottom - LL.bar_h - 8;
-    int tile_h = (avail_h - (rows - 1) * LL.tile_gap) / (rows > 0 ? rows : 1);
-    if (tile_h > tile_w) tile_h = tile_w;
+    const int tile_w = (grid_w - (cols - 1) * gap) / cols;
+    const int tile_h = tile_w + (small ? 0 : 12);
+    const int grid_h = LL.h - LL.grid_y - LL.bar_bottom - LL.bar_h - 6;
+
+    lv_obj_t* grid = lv_obj_create(launcher_root);
+    lv_obj_remove_style_all(grid);
+    lv_obj_set_size(grid, LL.w, grid_h);
+    lv_obj_set_pos(grid, 0, LL.grid_y);
+    lv_obj_set_scroll_dir(grid, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(grid, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_pad_bottom(grid, gap, 0);
 
     for (int i = 0; i < APP_COUNT && i < 16; i++) {
         const App* app = APPS[i];
         const int r = i / cols, col = i % cols;
 
-        lv_obj_t* tile = lv_obj_create(launcher_root);
+        lv_obj_t* tile = lv_obj_create(grid);
         lv_obj_set_size(tile, tile_w, tile_h);
-        lv_obj_set_pos(tile, LL.margin + col * (tile_w + LL.tile_gap),
-                             LL.grid_y + r * (tile_h + LL.tile_gap));
+        lv_obj_set_pos(tile, LL.margin + col * (tile_w + gap), r * (tile_h + gap));
         lv_obj_set_style_bg_color(tile, THEME_PANEL, 0);
         lv_obj_set_style_bg_opa(tile, LV_OPA_COVER, 0);
         lv_obj_set_style_bg_color(tile, THEME_BAR_BG, LV_STATE_PRESSED);
@@ -260,6 +275,7 @@ static void build_launcher(lv_obj_t* scr) {
         lv_obj_set_style_pad_all(tile, 0, 0);
         lv_obj_clear_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(tile, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_flag(tile, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
         lv_obj_add_event_cb(tile, tile_click_cb, LV_EVENT_CLICKED, (void*)(intptr_t)i);
 
         lv_obj_t* icon;
@@ -269,10 +285,11 @@ static void build_launcher(lv_obj_t* scr) {
             icon = lv_image_create(tile);
             if (app->icon_img) lv_image_set_src(icon, app->icon_img);
         }
-        lv_obj_align(icon, LV_ALIGN_CENTER, 0, -18);
+        lv_obj_align(icon, LV_ALIGN_CENTER, 0, small ? -12 : -18);
 
-        lv_obj_t* name = make_label(tile, LL.tile_font, THEME_TEXT, app->name);
-        lv_obj_align(name, LV_ALIGN_BOTTOM_MID, 0, -16);
+        lv_obj_t* name = make_label(tile, small ? LL.tile_font : &font_cjk_28, THEME_TEXT, app_label(app));
+        lv_obj_set_style_text_line_space(name, -14, 0);
+        lv_obj_align(name, LV_ALIGN_BOTTOM_MID, 0, small ? -4 : 0);
     }
 }
 

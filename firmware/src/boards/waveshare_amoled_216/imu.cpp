@@ -1,4 +1,5 @@
 #include "../../hal/imu_hal.h"
+#include "../../hal/hal_extras.h"
 #include "board.h"
 #include <Arduino.h>
 #include <Wire.h>
@@ -6,6 +7,7 @@
 
 // Poll and hysteresis timing
 #define IMU_POLL_MS       100    // ~10 Hz
+#define IMU_POLL_FAST_MS  20     // app mode (tilt game / level)
 #define STABLE_TIME_MS    300    // orientation must hold this long before rotating
 #define TILT_THRESHOLD    0.5f   // ~30° from axis (sin 30° ≈ 0.5)
 
@@ -15,6 +17,9 @@ static uint8_t  candidate_rotation = 0;
 static uint32_t candidate_since    = 0;
 static uint32_t last_poll_ms       = 0;
 static bool     imu_ok             = false;
+static bool     app_mode           = false;   // rotation frozen, fast polling
+static float    last_ax = 0, last_ay = 0, last_az = 0;
+static bool     have_sample        = false;
 
 static uint8_t accel_to_rotation(float ax, float ay) {
     float abs_ax = fabsf(ax);
@@ -43,11 +48,14 @@ void imu_hal_init(void) {
 void imu_hal_tick(void) {
     if (!imu_ok) return;
     uint32_t now = millis();
-    if (now - last_poll_ms < IMU_POLL_MS) return;
+    if (now - last_poll_ms < (app_mode ? IMU_POLL_FAST_MS : IMU_POLL_MS)) return;
     last_poll_ms = now;
 
     float ax, ay, az;
     if (!imu.getAccelerometer(ax, ay, az)) return;
+    last_ax = ax; last_ay = ay; last_az = az;
+    have_sample = true;
+    if (app_mode) return;   // keep the current rotation while an app uses the IMU
 
     uint8_t target = accel_to_rotation(ax, ay);
     if (target == 255 || target == current_rotation) {
@@ -64,3 +72,19 @@ void imu_hal_tick(void) {
 }
 
 uint8_t imu_hal_rotation_quadrant(void) { return current_rotation; }
+
+bool imu_hal_accel(float* x, float* y, float* z) {
+    if (!imu_ok || !have_sample) return false;
+    *x = last_ax; *y = last_ay; *z = last_az;
+    return true;
+}
+
+void imu_hal_app_mode(bool on) {
+    if (!imu_ok || on == app_mode) return;
+    app_mode = on;
+    imu.configAccelerometer(
+        SensorQMI8658::ACC_RANGE_4G,
+        on ? SensorQMI8658::ACC_ODR_LOWPOWER_128Hz : SensorQMI8658::ACC_ODR_LOWPOWER_21Hz,
+        SensorQMI8658::LPF_MODE_3);
+    candidate_rotation = current_rotation;
+}

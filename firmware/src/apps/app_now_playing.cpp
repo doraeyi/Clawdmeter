@@ -286,4 +286,5 @@ extern const App APP_NOW_PLAYING = {
     /*leave*/      nullptr,
     /*tick*/       np_tick,
     /*on_pwr*/     np_on_pwr,
+    /*label*/      "正在播放",
 };

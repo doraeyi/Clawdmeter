@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <stddef.h>
 
 // Board-agnostic ES8311 + I2S chime engine. A board's sound.cpp fills in a
 // ChimeConfig (its I2S pins, codec address, volume, and a power-amp enable
@@ -31,3 +32,9 @@ void chime_play(void);
 
 // Currently a no-op (playback runs in its own task); kept for HAL symmetry.
 void chime_tick(void);
+
+// Full-duplex access for a board's microphone path (ES7210 shares this I2S
+// bus on the AMOLED-2.16). Reads interleaved 16-bit stereo frames; blocks
+// until `bytes` are read. Returns bytes read, 0 if the engine isn't ready.
+size_t chime_i2s_read(void* buf, size_t bytes);
+bool   chime_is_ready(void);

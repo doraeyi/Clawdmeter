@@ -1,4 +1,5 @@
 #include "../../hal/power_hal.h"
+#include "../../hal/hal_extras.h"
 #include "board.h"
 #include <Arduino.h>
 #include <Wire.h>
@@ -34,6 +35,10 @@ void power_hal_init(void) {
 
     pmu.enableBattDetection();
     pmu.enableBattVoltageMeasure();
+    // Extra ADC channels for the Settings app (battery/USB/system voltage, PMU temp).
+    pmu.enableVbusVoltageMeasure();
+    pmu.enableSystemVoltageMeasure();
+    pmu.enableTemperatureMeasure();
 
     pmu.disableIRQ(XPOWERS_AXP2101_ALL_IRQ);
     pmu.clearIrqStatus();
@@ -90,4 +95,16 @@ bool power_hal_pwr_long_pressed(void) {
 bool power_hal_pwr_released(void) {
     if (pwr_released_flag) { pwr_released_flag = false; return true; }
     return false;
+}
+
+bool power_hal_details(PowerDetails* d) {
+    d->pct          = cached_pct;
+    d->charging     = cached_charging;
+    d->vbus_in      = cached_vbus;
+    d->batt_present = pmu.isBatteryConnect();
+    d->batt_mv      = d->batt_present ? pmu.getBattVoltage() : 0;
+    d->vbus_mv      = cached_vbus ? pmu.getVbusVoltage() : 0;
+    d->sys_mv       = pmu.getSystemVoltage();
+    d->pmu_temp_c   = pmu.getTemperature();
+    return true;
 }

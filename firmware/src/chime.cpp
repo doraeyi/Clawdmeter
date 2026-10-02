@@ -64,3 +64,10 @@ void chime_play(void) {
 }
 
 void chime_tick(void) {}   // playback runs in chime_task; nothing to poll
+
+size_t chime_i2s_read(void* buf, size_t bytes) {
+    if (!ready) return 0;
+    return i2s.readBytes((char*)buf, bytes);
+}
+
+bool chime_is_ready(void) { return ready; }

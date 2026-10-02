@@ -8,3 +8,8 @@
 void    brightness_init(void);    // load saved level from NVS and apply
 void    brightness_cycle(void);   // advance to next level, save, apply
 uint8_t brightness_get(void);     // current PWM level (0..255)
+
+// Settings app: pick a level directly.
+int     brightness_level_count(void);
+int     brightness_get_index(void);
+void    brightness_set_index(int idx);   // clamps, saves, applies

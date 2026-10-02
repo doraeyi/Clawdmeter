@@ -37,3 +37,17 @@ void brightness_cycle(void) {
 uint8_t brightness_get(void) {
     return LEVELS[cur_idx];
 }
+
+int brightness_level_count(void) { return LEVELS_COUNT; }
+int brightness_get_index(void)   { return cur_idx; }
+
+void brightness_set_index(int idx) {
+    if (idx < 0) idx = 0;
+    if (idx >= (int)LEVELS_COUNT) idx = LEVELS_COUNT - 1;
+    cur_idx = idx;
+    Preferences prefs;
+    prefs.begin("clawdmeter", false);
+    prefs.putUChar("brt_idx", cur_idx);
+    prefs.end();
+    idle_set_awake_brightness(LEVELS[cur_idx]);
+}

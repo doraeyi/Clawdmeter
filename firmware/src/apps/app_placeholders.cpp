@@ -11,9 +11,11 @@ static void plug_create(lv_obj_t* root)        { app_make_placeholder(root, &APP
 extern const App APP_WEATHER = {
     "Weather", ICON_CLOUD_SUN, nullptr, 0x6ab0de,
     weather_create, nullptr, nullptr, nullptr, nullptr,
+    "天氣",
 };
 
 extern const App APP_SMART_PLUG = {
     "Smart Plug", ICON_PLUG, nullptr, 0x788c5d,
     plug_create, nullptr, nullptr, nullptr, nullptr,
+    "智慧插座",
 };

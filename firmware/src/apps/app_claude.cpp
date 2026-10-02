@@ -43,4 +43,5 @@ extern const App APP_CLAUDE = {
     /*leave*/      claude_leave,
     /*tick*/       nullptr,        // ui_tick_anim()/splash_tick() already run in loop()
     /*on_pwr*/     claude_on_pwr,
+    /*label*/      "Claude",
 };
