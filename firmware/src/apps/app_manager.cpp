@@ -4,6 +4,7 @@
 #include "../brightness.h"
 #include "../hal/board_caps.h"
 #include "../hal/power_hal.h"
+#include "../ble.h"
 
 #include <Arduino.h>
 #include <lvgl.h>
@@ -93,6 +94,8 @@ static long     clock_epoch = 0;
 static uint32_t clock_base_ms = 0;
 static int      clock_fmt = 24;
 static int      clock_last_min = -2;
+static bool     got_payload = false;   // any daemon payload since boot
+static int      hint_state = -1;
 
 // ---------------------------------------------------------------------------
 // Small widget helpers
@@ -183,10 +186,16 @@ static void build_home(lv_obj_t* scr) {
 
 static void update_clock(bool force) {
     if (clock_epoch <= 0) {
-        if (force || clock_last_min != -1) {
+        // Say why there's no time: no BLE link, no daemon data yet, or the
+        // daemon is running with its clock option off.
+        int st = ble_get_state() != BLE_STATE_CONNECTED ? 0 : !got_payload ? 1 : 2;
+        if (force || clock_last_min != -1 || st != hint_state) {
             clock_last_min = -1;
+            hint_state = st;
             lv_label_set_text(lbl_time, "--:--");
-            lv_label_set_text(lbl_date, "Waiting for time sync");
+            lv_label_set_text(lbl_date, st == 0 ? "Bluetooth not connected"
+                                      : st == 1 ? "Waiting for the computer app"
+                                                : "Clock is off in the computer app");
             lv_obj_align_to(lbl_date, lbl_time, LV_ALIGN_OUT_BOTTOM_MID, 0, 16);
         }
         return;
@@ -408,7 +417,9 @@ void app_manager_on_pwr(void) {
 }
 
 void app_manager_on_usage(const UsageData* d) {
-    if (!d->valid || !d->ok) return;
+    if (!d->valid) return;
+    got_payload = true;
+    if (!d->ok) return;
     if (d->clock_epoch > 0) {
         clock_epoch   = d->clock_epoch;
         clock_base_ms = lv_tick_get();
