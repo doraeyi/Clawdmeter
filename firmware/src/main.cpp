@@ -30,12 +30,11 @@ static UsageData usage = {};
 // boards (e.g. ESP32-C6) allocate from internal SRAM, so we shrink the strip
 // — 480×20 RGB565 = 19 KB × 2 buffers = 38 KB, fits beside everything else.
 #ifdef BOARD_HAS_PSRAM
-// Draw buffers in internal DMA-capable SRAM: LVGL renders 2-3x faster there
-// than in PSRAM. Affordable because LVGL's objects now live in PSRAM
-// (lv_mem_psram.c). Falls back to PSRAM if internal RAM is short.
+// Draw buffers stay in PSRAM: they're 2 x 38 KB, and internal SRAM is
+// reserved for BLE / Wi-Fi (LVGL's own objects also live in PSRAM, see
+// lv_mem_psram.c).
 #define BUF_LINES 40
-#define LV_BUF_CAPS (MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA)
-#define LV_BUF_FALLBACK_CAPS (MALLOC_CAP_SPIRAM)
+#define LV_BUF_CAPS (MALLOC_CAP_SPIRAM)
 #else
 #define BUF_LINES 20
 #define LV_BUF_CAPS (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
@@ -44,6 +43,15 @@ static uint16_t* buf1 = nullptr;
 static uint16_t* buf2 = nullptr;
 
 static uint32_t my_tick(void) { return millis(); }
+
+// Boot-time memory checkpoints (serial monitor): internal SRAM vs PSRAM free,
+// so it's clear which subsystem eats the scarce internal RAM.
+static void mem_mark(const char* tag) {
+    Serial.printf("[mem] %-14s internal free %6u (largest %6u)  psram free %8u\n", tag,
+        (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+        (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+        (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+}
 
 static void my_flush_cb(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
     int32_t w = area->x2 - area->x1 + 1;
@@ -203,10 +211,13 @@ void setup() {
     delay(300);
     Serial.println("{\"ready\":true}");
 
+    mem_mark("start");
     board_init();
+    mem_mark("board_init");
 
     display_hal_init();
     display_hal_begin();
+    mem_mark("display");
     idle_init();        // takes over panel brightness and starts the idle timer
     brightness_init();  // load the user's saved brightness level and apply via idle
 
@@ -214,6 +225,7 @@ void setup() {
     imu_hal_init();
     sound_hal_init();
     touch_hal_init();
+    mem_mark("hal (pmu/imu/snd)");
 
     // ---- LVGL ----
     const int W = board_caps().width;
@@ -224,10 +236,6 @@ void setup() {
 
     buf1 = (uint16_t*)heap_caps_malloc(W * BUF_LINES * 2, LV_BUF_CAPS);
     buf2 = (uint16_t*)heap_caps_malloc(W * BUF_LINES * 2, LV_BUF_CAPS);
-#ifdef LV_BUF_FALLBACK_CAPS
-    if (!buf1) buf1 = (uint16_t*)heap_caps_malloc(W * BUF_LINES * 2, LV_BUF_FALLBACK_CAPS);
-    if (!buf2) buf2 = (uint16_t*)heap_caps_malloc(W * BUF_LINES * 2, LV_BUF_FALLBACK_CAPS);
-#endif
 
     lv_display_t* disp = lv_display_create(W, H);
     lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
@@ -239,15 +247,19 @@ void setup() {
     lv_indev_t* indev = lv_indev_create();
     lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
     lv_indev_set_read_cb(indev, my_touch_cb);
+    mem_mark("lvgl+buffers");
 
     ble_init();
+    mem_mark("ble");
     input_hal_init();
 
     ui_init();
+    mem_mark("ui (claude)");
     ui_update_ble_status(ble_get_state(), ble_get_device_name(), ble_get_mac_address());
     ui_update_battery(power_hal_battery_pct(), power_hal_is_charging());
     ui_show_screen(SCREEN_NONE);
     app_manager_init();   // boots into the clock home screen
+    mem_mark("apps");
 
     Serial.printf("Dashboard ready (%s, %dx%d), waiting for data on BLE...\n",
         board_caps().name, W, H);

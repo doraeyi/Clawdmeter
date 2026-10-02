@@ -24,7 +24,7 @@ extern const App APP_SETTINGS;
 static lv_obj_t* list;   // scrolling column of cards
 
 // Storage
-static lv_obj_t *v_fw, *b_fw, *v_flash, *v_psram, *b_psram, *v_ram, *b_ram, *v_nvs;
+static lv_obj_t *v_fw, *b_fw, *v_flash, *v_psram, *b_psram, *v_ram, *b_ram, *v_nvs, *v_lvgl, *v_largest;
 // Battery
 static lv_obj_t *v_bpct, *b_bpct, *v_bstate, *v_bmv, *v_vbus, *v_sys, *v_ptemp;
 static lv_obj_t* card_batt;
@@ -129,6 +129,18 @@ static void brt_cb(lv_event_t* e) {
 
 static void sound_cb(lv_event_t*) { sound_hal_play_reset(); }
 
+static bool perf_on = false;
+static void perf_cb(lv_event_t* e) {
+#if LV_USE_PERF_MONITOR
+    perf_on = !perf_on;
+    if (perf_on) lv_sysmon_show_performance(NULL);
+    else         lv_sysmon_hide_performance(NULL);
+    lv_obj_set_style_bg_color((lv_obj_t*)lv_event_get_target(e), perf_on ? THEME_ACCENT : THEME_BAR_BG, 0);
+#else
+    (void)e;
+#endif
+}
+
 static lv_obj_t* pill_button(lv_obj_t* parent, const char* label, lv_event_cb_t cb, void* ud) {
     lv_obj_t* b = lv_obj_create(parent);
     lv_obj_set_height(b, 56);
@@ -164,6 +176,8 @@ static void refresh(void) {
     }
     fmt_used(v_ram, si.heap_total - si.heap_free, si.heap_total);
     set_bar(b_ram, si.heap_total - si.heap_free, si.heap_total);
+    fmt_bytes(buf, sizeof(buf), si.heap_largest);  lv_label_set_text(v_largest, buf);
+    fmt_bytes(buf, sizeof(buf), si.lvgl_used);     lv_label_set_text(v_lvgl, buf);
     if (si.nvs_total) lv_label_set_text_fmt(v_nvs, "%u / %u 筆", (unsigned)si.nvs_used, (unsigned)si.nvs_total);
 
     // Battery
@@ -228,6 +242,8 @@ static void settings_create(lv_obj_t* root) {
     v_fw = row(c, "韌體");        b_fw = bar(c);
     v_psram = row(c, "PSRAM");     b_psram = bar(c);
     v_ram = row(c, "記憶體");      b_ram = bar(c);
+    v_largest = row(c, "最大可用區塊");
+    v_lvgl = row(c, "畫面使用");
     v_flash = row(c, "Flash 容量");
     v_nvs = row(c, "設定儲存");
 
@@ -260,6 +276,10 @@ static void settings_create(lv_obj_t* root) {
         lv_obj_set_width(brt_btns[i], 1);          // let flex-grow share the row evenly
         lv_obj_set_flex_grow(brt_btns[i], 1);
     }
+
+    lv_obj_t* pb = pill_button(c, "顯示 FPS", perf_cb, nullptr);
+    lv_obj_set_width(pb, LV_PCT(100));
+    lv_obj_set_style_margin_bottom(pb, 10, 0);
 
     c = card("聲音");
     lv_obj_t* sb = pill_button(c, "播放測試音", sound_cb, nullptr);

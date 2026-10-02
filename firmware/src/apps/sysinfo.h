@@ -12,6 +12,8 @@ struct SysInfo {
     uint32_t    app_used;      // bytes, current firmware image
     uint32_t    psram_total, psram_free;
     uint32_t    heap_total, heap_free, heap_min_free;
+    uint32_t    heap_largest;  // largest free internal block (what Wi-Fi needs)
+    uint32_t    lvgl_used;     // bytes LVGL has allocated (in PSRAM on S3)
     uint32_t    nvs_used, nvs_total;   // NVS entries (settings storage)
     float       chip_temp_c;   // internal sensor, -999 if unavailable
     uint32_t    uptime_s;

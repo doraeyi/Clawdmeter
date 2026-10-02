@@ -460,6 +460,9 @@ void app_manager_init(void) {
     lv_obj_clear_flag(home_bar, LV_OBJ_FLAG_CLICKABLE);
 
     update_battery_label();
+#if LV_USE_PERF_MONITOR
+    lv_sysmon_hide_performance(NULL);   // off by default; Settings → 顯示 FPS
+#endif
     app_manager_go_home();
 }
 
