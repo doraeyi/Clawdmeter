@@ -30,11 +30,14 @@ static UsageData usage = {};
 // boards (e.g. ESP32-C6) allocate from internal SRAM, so we shrink the strip
 // — 480×20 RGB565 = 19 KB × 2 buffers = 38 KB, fits beside everything else.
 #ifdef BOARD_HAS_PSRAM
-// Draw buffers stay in PSRAM: they're 2 x 38 KB, and internal SRAM is
-// reserved for BLE / Wi-Fi (LVGL's own objects also live in PSRAM, see
-// lv_mem_psram.c).
+// One draw buffer in internal SRAM: LVGL renders much faster there than in
+// PSRAM, and a second buffer buys nothing because the QSPI flush is
+// synchronous. 480 x 40 x 2 = 38 KB. Falls back to PSRAM if internal RAM is
+// short. LVGL's objects live in PSRAM (lv_mem_psram.c).
 #define BUF_LINES 40
-#define LV_BUF_CAPS (MALLOC_CAP_SPIRAM)
+#define LV_BUF_CAPS (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
+#define LV_BUF_SINGLE 1
+#define LV_BUF_FALLBACK_CAPS (MALLOC_CAP_SPIRAM)
 #else
 #define BUF_LINES 20
 #define LV_BUF_CAPS (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
@@ -235,7 +238,17 @@ void setup() {
     lv_tick_set_cb(my_tick);
 
     buf1 = (uint16_t*)heap_caps_malloc(W * BUF_LINES * 2, LV_BUF_CAPS);
+#ifdef LV_BUF_SINGLE
+    buf2 = nullptr;
+#else
     buf2 = (uint16_t*)heap_caps_malloc(W * BUF_LINES * 2, LV_BUF_CAPS);
+#endif
+#ifdef LV_BUF_FALLBACK_CAPS
+    if (!buf1) {
+        Serial.println("[mem] draw buffer: internal RAM short, using PSRAM");
+        buf1 = (uint16_t*)heap_caps_malloc(W * BUF_LINES * 2, LV_BUF_FALLBACK_CAPS);
+    }
+#endif
 
     lv_display_t* disp = lv_display_create(W, H);
     lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
