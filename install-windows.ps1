@@ -62,6 +62,10 @@ there, e.g.
 # Step 1: Create virtual environment
 # ------------------------------------------------------------------
 $VenvDir = Join-Path $RepoRoot ".venv"
+if ((Test-Path $VenvDir) -and -not (Test-Path (Join-Path $VenvDir "Scripts\python.exe"))) {
+    Log "Existing .venv is incomplete (no Scripts\python.exe) - recreating it"
+    Remove-Item -Recurse -Force $VenvDir
+}
 if (Test-Path $VenvDir) {
     Log "Virtual environment already exists at .venv - skipping creation"
 } else {
