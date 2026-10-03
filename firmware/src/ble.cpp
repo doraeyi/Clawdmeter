@@ -12,6 +12,7 @@
 #define TX_CHAR_UUID        "4c41555a-4465-7669-6365-000000000003"  // device ack/nack notifies
 #define REQ_CHAR_UUID       "4c41555a-4465-7669-6365-000000000004"  // device-initiated refresh request
 #define NP_CHAR_UUID        "4c41555a-4465-7669-6365-000000000005"  // host writes now-playing JSON here
+#define PLUG_CHAR_UUID      "4c41555a-4465-7669-6365-000000000006"  // smart plugs: host writes state, device notifies commands
 
 #define BLE_BUF_SIZE 512
 
@@ -76,6 +77,7 @@ static NimBLEHIDDevice* hid_dev = nullptr;
 static NimBLECharacteristic* input_kbd = nullptr;
 static NimBLECharacteristic* input_media = nullptr;
 static NimBLECharacteristic* np_char = nullptr;
+static NimBLECharacteristic* plug_char = nullptr;
 static NimBLECharacteristic* tx_char = nullptr;
 static NimBLECharacteristic* rx_char = nullptr;
 static NimBLECharacteristic* req_char = nullptr;
@@ -94,6 +96,8 @@ static char rx_buf[BLE_BUF_SIZE];
 static volatile bool data_ready = false;
 static char np_buf[BLE_BUF_SIZE];
 static volatile bool np_ready = false;
+static char plug_buf[BLE_BUF_SIZE];
+static volatile bool plug_ready = false;
 static volatile bool has_received_data = false;
 static char mac_str[18];
 
@@ -321,6 +325,20 @@ class NpCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
+// Smart-plug state from the host (same owner rules as RX).
+class PlugCallbacks : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* chr, NimBLEConnInfo& info) override {
+        std::string id = info.getIdAddress().toString();
+        if (!info.isEncrypted()) return;
+        if (owner_set && strcmp(id.c_str(), owner_addr) != 0) return;
+        std::string val = chr->getValue();
+        size_t len = std::min(val.length(), (size_t)(BLE_BUF_SIZE - 1));
+        memcpy(plug_buf, val.c_str(), len);
+        plug_buf[len] = '\0';
+        plug_ready = true;
+    }
+};
+
 // When the daemon enables notifications on the refresh char, ask for data
 // if we have none yet. Firing on subscribe (not on connect) ensures the
 // notification isn't dropped before the daemon's CCCD write completes.
@@ -400,6 +418,13 @@ void ble_init(void) {
     );
     static NpCallbacks npCb;
     np_char->setCallbacks(&npCb);
+
+    plug_char = svc->createCharacteristic(
+        PLUG_CHAR_UUID,
+        NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR | NIMBLE_PROPERTY::NOTIFY
+    );
+    static PlugCallbacks plugCb;
+    plug_char->setCallbacks(&plugCb);
 
     svc->start();
     server->start();
@@ -520,4 +545,17 @@ void ble_media_key(uint16_t usage) {
     uint8_t release[2] = {0, 0};
     input_media->setValue(release, sizeof(release));
     input_media->notify();
+}
+
+bool ble_has_plugs(void) { return plug_ready; }
+
+const char* ble_get_plugs(void) {
+    plug_ready = false;
+    return plug_buf;
+}
+
+bool ble_plug_command(const char* json) {
+    if (state != BLE_STATE_CONNECTED || !plug_char) return false;
+    plug_char->setValue((const uint8_t*)json, strlen(json));
+    return plug_char->notify();
 }

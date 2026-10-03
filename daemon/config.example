@@ -42,3 +42,12 @@ chime = off
 #   12   = show the clock, forced 12-hour  (e.g. 6:28 PM)
 #   24   = show the clock, forced 24-hour  (e.g. 18:28)
 clock = off
+
+# Smart Plug app (Windows daemon): TP-Link Tapo plugs (P100/P105/P110/P115).
+# Your Tapo app login, and the plugs' IP addresses (up to 3, reserve them in your
+# router). In the Tapo app turn on Me → Third-Party Services → Third-Party
+# Compatibility. plug_names is optional (defaults to the names in the Tapo app).
+# tapo_username = you@example.com
+# tapo_password = your-password
+# plugs = 192.168.1.50, 192.168.1.51, 192.168.1.52
+# plug_names = Lamp, Fan, Dehumidifier

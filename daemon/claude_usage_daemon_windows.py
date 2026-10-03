@@ -28,14 +28,17 @@ from bleak.exc import BleakError
 
 try:  # imported as daemon.claude_usage_daemon_windows (tray app)
     from .now_playing_windows import NowPlayingWatcher
+    from .tapo_windows import PlugController
 except ImportError:  # run directly as a script
     from now_playing_windows import NowPlayingWatcher
+    from tapo_windows import PlugController
 
 DEVICE_NAME = "Clawdmeter"
 SERVICE_UUID = "4c41555a-4465-7669-6365-000000000001"
 RX_CHAR_UUID = "4c41555a-4465-7669-6365-000000000002"
 REQ_CHAR_UUID = "4c41555a-4465-7669-6365-000000000004"
 NP_CHAR_UUID = "4c41555a-4465-7669-6365-000000000005"   # now-playing payloads
+PLUG_CHAR_UUID = "4c41555a-4465-7669-6365-000000000006"  # smart plugs: state out, commands in
 NP_TICK = 1.0  # seconds between now-playing checks while connected
 
 POLL_INTERVAL = 60
@@ -410,6 +413,25 @@ class Session:
             log(f"Now-playing write failed: {e}")
             return False
 
+    async def setup_plug_subscription(self, on_command) -> bool:
+        """Listen for plug on/off taps from the board. Older firmware lacks the
+        characteristic; that just disables the Smart Plug relay."""
+        try:
+            await self.client.start_notify(PLUG_CHAR_UUID, lambda _c, data: on_command(data))
+            return True
+        except (BleakError, ValueError, OSError) as e:
+            log(f"Smart plug channel unavailable: {e}")
+            return False
+
+    async def write_plugs(self, payload: dict) -> bool:
+        data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        try:
+            await self.client.write_gatt_char(PLUG_CHAR_UUID, data, response=True)
+            return True
+        except (BleakError, OSError, ValueError) as e:
+            log(f"Smart plug write failed: {e}")
+            return False
+
     async def write_payload(self, payload: dict) -> bool:
         data = json.dumps(payload, separators=(",", ":")).encode()
         log(f"Sending: {data.decode()}")
@@ -605,6 +627,8 @@ async def connect_and_run(device, stop_event: asyncio.Event, tray_state=None) ->
     session = Session(client)
     await session.setup_refresh_subscription()
     np_watcher = NowPlayingWatcher(log)
+    plugs = PlugController(log, CONFIG_FILE)
+    plugs_ok = await session.setup_plug_subscription(plugs.on_command)
 
     last_poll = 0.0  # D-03: poll immediately on first connect
     used_successfully = False
@@ -699,6 +723,10 @@ async def connect_and_run(device, stop_event: asyncio.Event, tray_state=None) ->
                     log(f"Now playing: {np_payload.get('st')} {np_payload.get('ti', '')!r}")
                 else:
                     np_watcher.force_resend()
+            if plugs_ok:
+                plug_payload = await plugs.poll()
+                if plug_payload is not None and not await session.write_plugs(plug_payload):
+                    plugs.force_resend()
             await _wait_first(session.refresh_requested, stop_event, timeout=NP_TICK)
     finally:
         # Clean GATT disconnect on the way out — this is what tells the peripheral

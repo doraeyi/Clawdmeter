@@ -14,6 +14,7 @@
 #include "brightness.h"
 #include "apps/app_manager.h"
 #include "apps/now_playing.h"
+#include "apps/smart_plug.h"
 
 #include "hal/board_caps.h"
 #include "hal/display_hal.h"
@@ -413,6 +414,7 @@ void loop() {
     check_serial_cmd();
 
     if (ble_has_now_playing()) now_playing_on_payload(ble_get_now_playing());
+    if (ble_has_plugs()) smart_plug_on_payload(ble_get_plugs());
 
     if (ble_has_data()) {
         if (parse_json(ble_get_data(), &usage)) {

@@ -20,7 +20,7 @@
 | Claude | `apps/app_claude.cpp` | 原本的用量畫面。PWR 鍵 → Clawd 動畫，再按換下一個；點螢幕切回用量 |
 | 正在播放 | `apps/app_now_playing.cpp` | 電腦正在播的歌，上一首／播放暫停／下一首；PWR = 播放暫停 |
 | 天氣 | `apps/app_placeholders.cpp` | 佔位頁 |
-| 智慧插座 | `apps/app_placeholders.cpp` | 佔位頁 |
+| 智慧插座 | `apps/app_smart_plug.cpp` | TP-Link Tapo 插座（P100/P105/P110）開關，最多 3 個；透過電腦端常駐程式控制 |
 | 頻譜 | `apps/app_spectrum.cpp` | 麥克風（ES7210）即時頻譜；PWR = 暫停（官方範例 05_Spec_Analyzer） |
 | 設定 | `apps/app_settings.cpp` | 儲存空間（韌體、PSRAM、記憶體、Flash、設定儲存）、電池（電量、電壓、溫度）、藍牙、亮度、測試音、關於（晶片、溫度、開機時間、版本）（官方範例 03_LVGL_AXP2101_ADC_Data） |
 
@@ -35,7 +35,7 @@
 - 其他板子：App 會顯示「沒有…」
 - 加速度計介面（`imu_hal_accel` / `imu_hal_app_mode`）先保留，之後要做體感相關 App 可以直接用
 
-LVGL 改用系統 `malloc`（`-DLV_USE_STDLIB_MALLOC=1`）而不是固定 64 KB 記憶體池，App 變多後才不會不夠用；S3 會自動用到 PSRAM。
+LVGL 改用自訂的記憶體配置（`-DLV_USE_STDLIB_MALLOC=255`，見 `lv_mem_psram.c`）而不是固定 64 KB 記憶體池：有 PSRAM 的板子把畫面物件放到 PSRAM，內部記憶體留給藍牙和系統。
 
 ## Now Playing（正在播放）
 
@@ -47,6 +47,29 @@ LVGL 改用系統 `malloc`（`-DLV_USE_STDLIB_MALLOC=1`）而不是固定 64 KB 
 - 2.16 S3 板改用 16 MB 分割表（`default_16MB.csv`）才放得下字型；NVS 位置不變，配對資料會保留。
 
 模擬器：`SIM_NOWPLAYING='{"np":1,"ti":"歌名","ar":"歌手","app":"Chrome","st":"playing","pos":83,"dur":261}'`
+
+## 智慧插座（TP-Link Tapo）
+
+板子沒有 Wi-Fi，所以由電腦端常駐程式透過家裡的網路控制插座（Python `tapo` 套件），再用藍牙（特徵值 `…0006`）跟板子交換狀態和開關指令。電腦要開著、常駐程式要在跑，而且要跟插座在同一個網路。
+
+1. **Tapo App**：「我」→「第三方服務」→「第三方相容性」打開（新版韌體要開這個才允許區域網路控制）。
+2. **固定插座 IP**：Tapo App 裡點插座 → 右上齒輪 →「裝置資訊」可以看到 IP；建議在路由器把這三個 IP 設成固定（DHCP 保留），不然重開機可能會換。
+3. **設定檔** `%LOCALAPPDATA%\Clawdmeter\config` 加上：
+
+   ```
+   tapo_username = 你的 Tapo 帳號 Email
+   tapo_password = 你的 Tapo 密碼
+   plugs = 192.168.1.50, 192.168.1.51, 192.168.1.52
+   # 可選，不填就用 Tapo App 裡取的名字
+   plug_names = 檯燈, 電風扇, 除濕機
+   ```
+
+   密碼是明碼存在這個檔案裡（只有你的 Windows 帳號讀得到），密碼裡有 `#` 也沒關係。
+4. 重跑 `install-windows.ps1`（會裝 `tapo` 套件），常駐程式會自動重啟。設定檔改了不用重啟，下一次輪詢（約 10 秒）就會套用。
+
+板子上點一下卡片就開／關，畫面會先切換，常駐程式確認後再更新；8 秒沒確認就退回原狀態。插座連不到會顯示「離線」。
+
+模擬器：`SIM_PLUGS='{"pl":[{"n":"檯燈","on":1,"ok":1},{"n":"電風扇","on":0,"ok":1},{"n":"除濕機","on":0,"ok":0}]}'`
 
 ## 新增 App
 

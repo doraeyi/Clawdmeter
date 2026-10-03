@@ -39,3 +39,8 @@ const char* ble_get_now_playing(void);
 #define MEDIA_VOL_DOWN   0x00EA
 #define MEDIA_MUTE       0x00E2
 void ble_media_key(uint16_t usage);
+
+// Smart plugs: state JSON written by the host; commands notified back to it.
+bool ble_has_plugs(void);
+const char* ble_get_plugs(void);
+bool ble_plug_command(const char* json);   // false if not connected
