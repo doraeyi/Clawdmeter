@@ -34,7 +34,7 @@ except Exception:  # ImportError, or a broken wheel
 
 REFRESH_S = 10        # re-read plug states this often
 HEARTBEAT_S = 15      # resend unchanged state so the board knows we're alive
-MAX_PLUGS = 3
+MAX_PLUGS = 4
 MAX_NAME = 16
 TIMEOUT_S = 6
 

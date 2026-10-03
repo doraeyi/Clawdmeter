@@ -1,5 +1,6 @@
 #pragma once
 #include <stdbool.h>
+#include <stdint.h>
 
 void idle_init(void);
 void idle_tick(void);
@@ -20,3 +21,11 @@ bool idle_consume_wake_press(void);
 // sleeves, etc.). Callers use this to silently drop touch events while the
 // panel is dark.
 bool idle_is_asleep(void);
+
+// Put the screen to sleep right now (double-tap on the home clock). Unlike the
+// idle timeout this ignores touch and USB power: only a button press wakes it.
+void idle_sleep_now(void);
+// False during a manual sleep, so main.cpp drops touches instead of waking.
+bool idle_touch_can_wake(void);
+// True while manually asleep: main loop skips LVGL and polls slower.
+bool idle_is_manual_sleep(void);

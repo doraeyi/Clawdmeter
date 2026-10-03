@@ -1,3 +1,4 @@
+#include "../idle.h"
 #include "app_manager.h"
 #include "app_registry.h"
 #include "../theme.h"
@@ -180,7 +181,7 @@ static void build_home(lv_obj_t* scr) {
         lv_obj_set_style_bg_color(d, i == 0 ? THEME_TEXT : THEME_BAR_BG, 0);
     }
 
-    lv_obj_t* hint = make_label(home_root, LL.hint_font, THEME_DIM, "Swipe for apps");
+    lv_obj_t* hint = make_label(home_root, LL.hint_font, THEME_DIM, "Swipe for apps / double-tap to sleep");
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -LL.margin - 22);
 }
 
@@ -365,14 +366,36 @@ static bool     g_down = false;
 static bool     g_fired = false;
 static int      g_sx, g_sy;
 
+// Double-tap on the home clock → screen off until the PWR button is pressed.
+static uint32_t tap_down_ms = 0, last_tap_ms = 0;
+static int last_x = 0, last_y = 0, last_tap_x = 0, last_tap_y = 0;
+
+static void note_tap_release(void) {
+    const uint32_t now = lv_tick_get();
+    const int mdx = last_x - g_sx, mdy = last_y - g_sy;
+    const bool is_tap = !g_fired && now - tap_down_ms < 300 && mdx * mdx + mdy * mdy < 20 * 20;
+    if (!is_tap || view != VIEW_HOME) { last_tap_ms = 0; return; }
+    const int ddx = g_sx - last_tap_x, ddy = g_sy - last_tap_y;
+    if (last_tap_ms && now - last_tap_ms < 400 && ddx * ddx + ddy * ddy < 60 * 60) {
+        last_tap_ms = 0;
+        idle_sleep_now();
+        return;
+    }
+    last_tap_ms = now;
+    last_tap_x = g_sx; last_tap_y = g_sy;
+}
+
 bool app_manager_touch(bool pressed, int x, int y) {
+    if (pressed) { last_x = x; last_y = y; }
     if (!pressed) {
+        if (g_down) note_tap_release();
         g_down = false;
         g_fired = false;
         return false;
     }
     if (!g_down) {           // press edge
         g_down = true;
+        tap_down_ms = lv_tick_get();
         g_fired = false;
         g_sx = x; g_sy = y;
         return false;

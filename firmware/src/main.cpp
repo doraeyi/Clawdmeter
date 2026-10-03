@@ -82,7 +82,7 @@ static void my_touch_cb(lv_indev_t* indev, lv_indev_data_t* data) {
     touch_hal_read(&x, &y, &pressed);
     const bool raw_pressed = pressed;
 
-    if (IDLE_WAKE_ON_TOUCH) {
+    if (IDLE_WAKE_ON_TOUCH && idle_touch_can_wake()) {
         static bool touch_was = false;
         static bool touch_wake_swallowed = false;
         if (raw_pressed && !touch_was) {
@@ -329,7 +329,9 @@ static void pair_tick(void) {
 
 void loop() {
     idle_tick();
-    lv_timer_handler();
+    // Manual sleep (double-tap on the clock): nothing is visible and touch is
+    // ignored, so skip rendering entirely; BLE and buttons keep running.
+    if (!idle_is_manual_sleep()) lv_timer_handler();
     ui_tick_anim();
     app_manager_tick();
     ble_tick();
@@ -441,5 +443,5 @@ void loop() {
         }
     }
 
-    delay(5);
+    delay(idle_is_manual_sleep() ? 40 : 5);
 }

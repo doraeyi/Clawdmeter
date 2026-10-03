@@ -51,6 +51,8 @@ struct App {
 #define ICON_PAUSE      "\xEF\x81\x8C"   // U+F04C
 #define ICON_GEAR       "\xEF\x80\x93"   // U+F013 gear (Settings)
 #define ICON_WAVE       "\xEF\xA0\xBE"   // U+F83E wave-square (Spectrum)
+#define ICON_POWER      "\xEF\x80\x91"   // U+F011 power-off
+#define ICON_BULB       "\xEF\x83\xAB"   // U+F0EB lightbulb
 
 // Display name for a launcher tile / page title.
 inline const char* app_label(const struct App* a) { return a->label ? a->label : a->name; }
