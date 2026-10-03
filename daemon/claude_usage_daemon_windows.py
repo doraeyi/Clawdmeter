@@ -122,6 +122,22 @@ class AuthError(Exception):
     must NOT be mislabeled as a token problem (SC#5: a boot-time `getaddrinfo
     failed` DNS blip wrongly fired the 'token expired' toast)."""
 
+def read_config_text() -> str:
+    """Config file contents. Notepad saves UTF-8 (often with a BOM); older files
+    may be in the ANSI code page (cp950 on Traditional Chinese Windows). Never
+    raise — a bad config must not crash the daemon."""
+    try:
+        data = CONFIG_FILE.read_bytes()
+    except OSError:
+        return ""
+    for enc in ("utf-8-sig", "mbcs", "cp950"):
+        try:
+            return data.decode(enc)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return data.decode("utf-8", errors="replace")
+
+
 def read_chime_setting() -> str:
     """Read the `chime` option from the config file. One of: off|on.
 
@@ -129,7 +145,7 @@ def read_chime_setting() -> str:
     """
     try:
         if CONFIG_FILE.exists():
-            for line in CONFIG_FILE.read_text().splitlines():
+            for line in read_config_text().splitlines():
                 line = line.split("#", 1)[0].strip()
                 if "=" not in line:
                     continue
@@ -150,7 +166,7 @@ def read_clock_setting() -> str:
     """
     try:
         if CONFIG_FILE.exists():
-            for line in CONFIG_FILE.read_text().splitlines():
+            for line in read_config_text().splitlines():
                 line = line.split("#", 1)[0].strip()
                 if "=" not in line:
                     continue

@@ -43,7 +43,12 @@ def _read_config(path: Path) -> dict[str, str]:
     out: dict[str, str] = {}
     try:
         if path.exists():
-            for raw in path.read_text(encoding="utf-8-sig").splitlines():
+            data = path.read_bytes()
+            try:
+                text = data.decode("utf-8-sig")
+            except UnicodeDecodeError:
+                text = data.decode("mbcs" if hasattr(__import__("codecs"), "mbcs_encode") else "cp950", errors="replace")
+            for raw in text.splitlines():
                 line = raw.strip()
                 # Only whole-line comments: passwords may contain '#'.
                 if not line or line.startswith("#") or "=" not in line:
