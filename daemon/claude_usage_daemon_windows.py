@@ -640,6 +640,15 @@ async def connect_and_run(device, stop_event: asyncio.Event, tray_state=None) ->
         return False
 
     log("Connected")
+    # Diagnostics: what GATT services Windows actually reports for the board.
+    # If the Clawdmeter service (…0001) is missing, Windows is serving a stale
+    # cache from older firmware (re-pair) or the firmware failed to register it.
+    try:
+        svcs = list(client.services)
+        log("GATT services: " + ", ".join(
+            f"{s.uuid[:8]}({len(s.characteristics)})" for s in svcs))
+    except Exception as e:  # diagnostics only
+        log(f"GATT service listing failed: {e}")
     session = Session(client)
     await session.setup_refresh_subscription()
     np_watcher = NowPlayingWatcher(log)
