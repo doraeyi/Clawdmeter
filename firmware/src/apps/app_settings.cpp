@@ -5,6 +5,7 @@
 //   顯示      brightness (4 levels)
 //   聲音      play the test chime
 //   關於      chip, CPU, chip temperature, uptime, firmware build
+#include "../net/net.h"
 #include "app.h"
 #include "sysinfo.h"
 #include "../ble.h"
@@ -29,7 +30,7 @@ static lv_obj_t *v_fw, *b_fw, *v_flash, *v_psram, *b_psram, *v_ram, *b_ram, *v_n
 static lv_obj_t *v_bpct, *b_bpct, *v_bstate, *v_bmv, *v_vbus, *v_sys, *v_ptemp;
 static lv_obj_t* card_batt;
 // Bluetooth
-static lv_obj_t *v_ble, *v_name, *v_mac;
+static lv_obj_t *v_ble, *v_name, *v_mac, *v_datasvc, *v_wifi;
 // Display
 static lv_obj_t* brt_btns[8];
 static int       brt_count = 0;
@@ -210,6 +211,9 @@ static void refresh(void) {
     lv_obj_set_style_text_color(v_ble, bs == BLE_STATE_CONNECTED ? THEME_GREEN : THEME_TEXT, 0);
     lv_label_set_text(v_name, ble_get_device_name());
     lv_label_set_text(v_mac, ble_get_mac_address());
+    lv_label_set_text(v_datasvc, ble_data_service_ok() ? "正常" : "未建立");
+    lv_obj_set_style_text_color(v_datasvc, ble_data_service_ok() ? THEME_GREEN : THEME_RED, 0);
+    lv_label_set_text(v_wifi, net_configured() ? "已設定（插座＋對時）" : net_time_configured() ? "已設定（對時）" : "未設定");
 
     // About
     lv_label_set_text_fmt(v_chip, "%s rev %d", si.chip, si.chip_rev);
@@ -259,6 +263,8 @@ static void settings_create(lv_obj_t* root) {
     v_ble = row(c, "狀態");
     v_name = row(c, "名稱");
     v_mac = row(c, "MAC");
+    v_datasvc = row(c, "資料通道");
+    v_wifi = row(c, "Wi-Fi");
 
     c = card("顯示亮度");
     lv_obj_t* brow = lv_obj_create(c);

@@ -44,3 +44,6 @@ void ble_media_key(uint16_t usage);
 bool ble_has_plugs(void);
 const char* ble_get_plugs(void);
 bool ble_plug_command(const char* json);   // false if not connected
+
+// True when the custom data service is registered in the GATT table.
+bool ble_data_service_ok(void);

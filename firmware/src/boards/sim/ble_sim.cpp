@@ -169,3 +169,5 @@ static bool plugs_sent = false;
 bool ble_has_plugs(void) { return !plugs_sent && getenv("SIM_PLUGS") && millis() > 1000; }
 const char* ble_get_plugs(void) { plugs_sent = true; return getenv("SIM_PLUGS"); }
 bool ble_plug_command(const char* json) { printf("[sim] plug command %s\n", json); return true; }
+
+bool ble_data_service_ok(void) { return true; }

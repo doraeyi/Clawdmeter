@@ -78,6 +78,7 @@ static NimBLECharacteristic* input_kbd = nullptr;
 static NimBLECharacteristic* input_media = nullptr;
 static NimBLECharacteristic* np_char = nullptr;
 static NimBLECharacteristic* plug_char = nullptr;
+static bool data_svc_ok = false;
 static NimBLECharacteristic* tx_char = nullptr;
 static NimBLECharacteristic* rx_char = nullptr;
 static NimBLECharacteristic* req_char = nullptr;
@@ -427,8 +428,15 @@ void ble_init(void) {
     plug_char->setCallbacks(&plugCb);
 
     svc->start();
-    server->start();
+    bool started = server->start();
     start_advertising();
+
+    // Self-check: is our data service really in the GATT table? (Windows only
+    // reports what the board registered; shown in Settings → 藍牙 → 資料通道.)
+    data_svc_ok = ble_gatts_find_svc(NimBLEUUID(SERVICE_UUID).getBase(), nullptr) == 0;
+    Serial.printf("BLE: gatt start=%d data service=%s hid=%s\n", started ? 1 : 0,
+                  data_svc_ok ? "ok" : "MISSING",
+                  ble_gatts_find_svc(NimBLEUUID((uint16_t)0x1812).getBase(), nullptr) == 0 ? "ok" : "MISSING");
 
     Serial.printf("BLE: init complete, MAC=%s\n", mac_str);
 }
@@ -559,3 +567,5 @@ bool ble_plug_command(const char* json) {
     plug_char->setValue((const uint8_t*)json, strlen(json));
     return plug_char->notify();
 }
+
+bool ble_data_service_ok(void) { return data_svc_ok; }
