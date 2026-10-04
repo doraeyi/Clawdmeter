@@ -28,6 +28,10 @@ void app_manager_on_pwr(void);
 // Every valid daemon payload (used for the home-screen clock).
 void app_manager_on_usage(const UsageData* d);
 
+// Clock from another source (NTP over Wi-Fi). local_epoch = local wall-clock
+// seconds (same meaning as the daemon's "t"); fmt = 12 or 24.
+void app_manager_set_clock(long local_epoch, int fmt);
+
 void       app_manager_go_home(void);
 void       app_manager_open_launcher(void);
 void       app_manager_open_app(int index);

@@ -451,6 +451,14 @@ void app_manager_on_usage(const UsageData* d) {
     }
 }
 
+void app_manager_set_clock(long local_epoch, int fmt) {
+    if (local_epoch <= 0) return;
+    clock_epoch   = local_epoch;
+    clock_base_ms = lv_tick_get();
+    clock_fmt     = fmt == 12 ? 12 : 24;
+    update_clock(true);
+}
+
 // ---------------------------------------------------------------------------
 // Init / tick
 // ---------------------------------------------------------------------------

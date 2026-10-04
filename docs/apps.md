@@ -50,6 +50,21 @@ LVGL 改用自訂的記憶體配置（`-DLV_USE_STDLIB_MALLOC=255`，見 `lv_mem
 
 ## 智慧插座（TP-Link Tapo）
 
+有兩種控制方式，板子會自動選：
+
+- **電腦有開**（常駐程式連著、有設定插座）：由電腦控制，板子不開 Wi-Fi。
+- **電腦沒開**：如果有設定 `firmware/src/net/secrets.h`，板子在你打開「智慧插座」時自己開 Wi-Fi 直接控制插座，離開 App 約 60 秒後關掉 Wi-Fi。第一次點要等 Wi-Fi 連線，約 2～5 秒。
+
+### 板子直接控制（Wi-Fi）
+
+1. 複製 `firmware/src/net/secrets.example.h` 成 `firmware/src/net/secrets.h`（這個檔案在 `.gitignore` 裡，不會上傳到 GitHub）。
+2. 填入 Wi-Fi 名稱密碼（只能用 2.4 GHz）、Tapo 帳號密碼、插座 IP，可選的名稱。
+3. 重新燒錄。開機時板子也會用 Wi-Fi 對時幾秒（NTP），所以不用等電腦就有時間。
+
+協定是 TP-Link 的 KLAP（`net/klap_crypto.cpp` 對照 python-kasa 驗證過，`net/tapo_client.cpp`）。
+
+### 透過電腦控制
+
 板子沒有 Wi-Fi，所以由電腦端常駐程式透過家裡的網路控制插座（Python `tapo` 套件），再用藍牙（特徵值 `…0006`）跟板子交換狀態和開關指令。電腦要開著、常駐程式要在跑，而且要跟插座在同一個網路。
 
 1. **Tapo App**：「我」→「第三方服務」→「第三方相容性」打開（新版韌體要開這個才允許區域網路控制）。

@@ -15,6 +15,7 @@
 #include "apps/app_manager.h"
 #include "apps/now_playing.h"
 #include "apps/smart_plug.h"
+#include "net/net.h"
 
 #include "hal/board_caps.h"
 #include "hal/display_hal.h"
@@ -274,6 +275,8 @@ void setup() {
     ui_show_screen(SCREEN_NONE);
     app_manager_init();   // boots into the clock home screen
     mem_mark("apps");
+    net_init();         // Wi-Fi stays off; just a quick NTP clock sync if secrets.h is set
+    mem_mark("net");
 
     Serial.printf("Dashboard ready (%s, %dx%d), waiting for data on BLE...\n",
         board_caps().name, W, H);
@@ -334,6 +337,10 @@ void loop() {
     if (!idle_is_manual_sleep()) lv_timer_handler();
     ui_tick_anim();
     app_manager_tick();
+    {
+        long t; int f;
+        if (net_take_time(&t, &f)) app_manager_set_clock(t, f);
+    }
     ble_tick();
     power_hal_tick();
     imu_hal_tick();
